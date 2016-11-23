@@ -10,8 +10,14 @@ import sbt._
 object SbtJarManGit extends AutoPlugin {
   override def trigger = allRequirements
 
+  private lazy val scmInfo = repoInfo
+
   override lazy val projectSettings: Seq[sbt.Def.Setting[_]] = Seq(
-    packageOptions in (Compile, packageBin) += Package.ManifestAttributes(repoInfo: _*)
+      packageOptions in (Compile, packageBin) += Package.ManifestAttributes(scmInfo: _*),
+      pomExtra := <scm>
+        <url>{scmInfo(0)._2}</url>
+        <tag>{scmInfo(2)._2}</tag>
+      </scm>
   )
 
   def repoInfo: List[(String, String)] = {
