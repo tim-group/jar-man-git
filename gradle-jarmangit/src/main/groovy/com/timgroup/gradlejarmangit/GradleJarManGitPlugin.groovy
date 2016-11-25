@@ -9,7 +9,6 @@ import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.maven.MavenDeployer
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
 
@@ -38,10 +37,14 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
     Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
     if (uploadArchives != null) {
         def info = repoInfo()
-        uploadArchives.repositories.withType(MavenDeployer.class).all {deployer ->
-            Scm scm = ((Model)deployer.pom.getModel()).getScm()
+
+        uploadArchives.repositories.mavenDeployer { deployer ->
+            Scm scm = new Scm()
             scm.setTag(info.get("Git-Head-Rev"))
             scm.setUrl(info.get("Git-Origin"))
+
+            Model model = (Model)deployer.pom.getModel()
+            model.setScm(scm)
         }
     }
 
