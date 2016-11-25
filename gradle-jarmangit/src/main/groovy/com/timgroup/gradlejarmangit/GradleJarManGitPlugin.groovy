@@ -1,7 +1,5 @@
 package com.timgroup.gradlejarmangit
 
-import org.apache.maven.model.Model
-import org.apache.maven.model.Scm
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.Constants
 import org.eclipse.jgit.lib.ObjectId
@@ -12,6 +10,8 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.maven.PomFilterContainer
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
+
+import java.lang.reflect.Method
 
 final class GradleJarManGitPlugin implements Plugin<Project> {
 
@@ -40,13 +40,15 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
         def info = repoInfo()
 
         uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
-            Model model = (Model)deployer.getPom().getModel()
+            def model = deployer.getPom().getModel()
 
-            Scm scm = new Scm()
-            scm.setTag(info.get("Git-Head-Rev"))
-            scm.setUrl(info.get("Git-Origin"))
+            Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
+            Class<?> scmType = setScmMethod.parameterTypes[0]
 
-            model.setScm(scm)
+            def scm = scmType.newInstance()
+            scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
+            scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
+            setScmMethod.invoke(model, scm)
         }
     }
 
