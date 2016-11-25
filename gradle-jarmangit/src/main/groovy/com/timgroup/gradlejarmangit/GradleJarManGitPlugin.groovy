@@ -9,6 +9,7 @@ import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.maven.PomFilterContainer
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
 
@@ -38,12 +39,13 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
     if (uploadArchives != null) {
         def info = repoInfo()
 
-        uploadArchives.repositories.mavenDeployer { deployer ->
+        uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
+            Model model = (Model)deployer.getPom().getModel()
+
             Scm scm = new Scm()
             scm.setTag(info.get("Git-Head-Rev"))
             scm.setUrl(info.get("Git-Origin"))
 
-            Model model = (Model)deployer.pom.getModel()
             model.setScm(scm)
         }
     }
