@@ -35,20 +35,22 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.tasks.withType(Jar) { jar -> jar.manifest.attributes(repoInfo()) }
 
-        Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
-        if (uploadArchives != null) {
-            def info = repoInfo()
+        project.afterEvaluate {
+            Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
+            if (uploadArchives != null) {
+                def info = repoInfo()
 
-            uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
-                def model = deployer.getPom().getModel()
+                uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
+                    def model = deployer.getPom().getModel()
 
-                Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
-                Class<?> scmType = setScmMethod.parameterTypes[0]
+                    Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
+                    Class<?> scmType = setScmMethod.parameterTypes[0]
 
-                def scm = scmType.newInstance()
-                scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
-                scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
-                setScmMethod.invoke(model, scm)
+                    def scm = scmType.newInstance()
+                    scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
+                    scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
+                    setScmMethod.invoke(model, scm)
+                }
             }
         }
     }
