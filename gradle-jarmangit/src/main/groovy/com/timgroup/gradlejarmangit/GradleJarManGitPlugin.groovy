@@ -16,7 +16,13 @@ import java.lang.reflect.Method
 final class GradleJarManGitPlugin implements Plugin<Project> {
 
     static Map<String, String> repoInfo() {
-        Repository repository = new FileRepositoryBuilder().readEnvironment().findGitDir().build()
+        FileRepositoryBuilder builder = new FileRepositoryBuilder().readEnvironment().findGitDir()
+
+        if (builder.getGitDir() == null && builder.getWorkTree() == null) {
+            return new HashMap<String, String>()
+        }
+
+        Repository repository = builder.build()
 
         String origin = repository.getConfig().getString("remote", "origin", "url")
         String head = ObjectId.toString(repository.findRef(Constants.HEAD).getObjectId())
@@ -39,17 +45,18 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
             Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
             if (uploadArchives != null) {
                 def info = repoInfo()
+                if (!info.isEmpty()) {
+                    uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
+                        def model = deployer.getPom().getModel()
 
-                uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
-                    def model = deployer.getPom().getModel()
+                        Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
+                        Class<?> scmType = setScmMethod.parameterTypes[0]
 
-                    Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
-                    Class<?> scmType = setScmMethod.parameterTypes[0]
-
-                    def scm = scmType.newInstance()
-                    scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
-                    scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
-                    setScmMethod.invoke(model, scm)
+                        def scm = scmType.newInstance()
+                        scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
+                        scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
+                        setScmMethod.invoke(model, scm)
+                    }
                 }
             }
         }
