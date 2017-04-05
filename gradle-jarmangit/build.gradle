@@ -30,6 +30,17 @@ uploadArchives {
     }
 }
 
+compileTestGroovy {
+    if (gradle.gradleVersion.startsWith("1")) {
+        // old Gradle
+        exclude '**/ModernPomTest.groovy'
+    }
+    else {
+        // modern Gradle -- won't compile LegacyPomTest
+        exclude '**/LegacyPomTest.groovy'
+    }
+}
+
 buildscript {
     repositories {
         maven {
