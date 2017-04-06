@@ -5,10 +5,8 @@ import org.eclipse.jgit.lib.Constants
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.XmlProvider
 import org.gradle.api.artifacts.maven.PomFilterContainer
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
@@ -44,7 +42,6 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
         project.tasks.withType(Jar) { jar -> jar.manifest.attributes(repoInfo()) }
 
         project.afterEvaluate {
-            // "Legacy" (but still used) artifacts publication with 'maven' plugin
             Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
             if (uploadArchives != null) {
                 def info = repoInfo()
@@ -59,28 +56,6 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
                         scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
                         scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
                         setScmMethod.invoke(model, scm)
-                    }
-                }
-            }
-
-            // "Modern" (but still incubating after several years) artifacts publication with 'maven-publish' plugin
-            // API has changed radically since Gradle 1, don't even try to run this there
-            if (!project.gradle.gradleVersion.startsWith("1.")) {
-                def pushJarManGitIntoPom = new Action<XmlProvider>() {
-                    @Override
-                    void execute(XmlProvider xmlProvider) {
-                        def info = repoInfo()
-                        if (!info.isEmpty()) {
-                            def scm = xmlProvider.asNode().appendNode('scm')
-                            scm.appendNode('tag', info["Git-Head-Rev"])
-                            scm.appendNode('url', info["Git-Origin"])
-                        }
-                    }
-                }
-                project.extensions.configure(org.gradle.api.publish.PublishingExtension) {
-                    it.publications.withType(org.gradle.api.publish.maven.MavenPublication) {
-                        project.logger.info("adding JarManGit information to Maven publication $it.groupId:$it.artifactId:$it.version in $project")
-                        pom.withXml(pushJarManGitIntoPom)
                     }
                 }
             }
