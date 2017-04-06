@@ -1,6 +1,5 @@
 apply plugin: 'groovy'
 apply plugin: 'maven'
-#apply plugin: 'jarmangit'
 
 group = 'com.timgroup'
 version = '1.0.' + System.getenv('BUILD_NUMBER')
@@ -38,6 +37,5 @@ buildscript {
     }
 
     dependencies {
-    #    classpath group: 'com.timgroup', name: 'gradle-jarmangit', version: "1.0.20"
     }
 }
