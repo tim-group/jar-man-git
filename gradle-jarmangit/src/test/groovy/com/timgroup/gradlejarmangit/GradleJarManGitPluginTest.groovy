@@ -1,15 +1,14 @@
 package com.timgroup.gradlejarmangit
 
-import org.apache.maven.model.Model
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.maven.PomFilterContainer
-import org.gradle.api.internal.artifacts.ModuleInternal
-import org.gradle.api.internal.artifacts.configurations.DefaultConfiguration
-import org.gradle.api.internal.artifacts.configurations.DependencyMetaDataProvider
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.internal.publication.MavenPomInternal
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.listener.DefaultListenerManager
+import org.gradle.internal.impldep.org.apache.maven.model.Model
+import org.gradle.internal.xml.XmlTransformer
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.Test
 
@@ -38,28 +37,65 @@ class GradleJarManGitPluginTest {
     }
 
     @Test
-    void addsMetadataToPom() {
+    void addsMetadataToPomUsingTraditionalMaven() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
         project.apply plugin: 'maven'
         project.apply plugin: 'jarmangit'
 
+        def configuration = project.configurations.create("testing")
         Upload uploadArchives = project.tasks.create("uploadArchives", Upload)
-        uploadArchives.setConfiguration(new DefaultConfiguration("", "", null, null, new DefaultListenerManager(), new DependencyMetaDataProvider() {
-            @Override
-            ModuleInternal getModule() {
-                return null
-            }
-        }, null))
+        uploadArchives.setConfiguration(configuration)
 
-        project.evaluate();
+        project.evaluate()
 
         String url = null
         uploadArchives.repositories.mavenDeployer { m ->
             def foo = (PomFilterContainer)m
-            url = ((Model)foo.getPom().getModel()).getScm().getUrl()
+            def model = foo.getPom().getModel()
+            url = ((Model) model).getScm().getUrl()
         }
 
         assertThat(url, containsString("jar-man-git"))
+    }
+
+    @Test
+    void addsMetadataToPomUsingMavenPublish() {
+        Project project = ProjectBuilder.builder().build()
+        project.with {
+            apply plugin: 'java'
+            apply plugin: 'maven-publish'
+            apply plugin: 'jarmangit'
+
+            publishing {
+                publications {
+                    mavenJava(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        }
+
+        project.evaluate()
+
+        def publications = project.extensions.getByType(PublishingExtension).publications
+        def publication = publications.iterator().next()
+        def mavenPublication = (MavenPublication) publication
+        def mavenPom = (MavenPomInternal) mavenPublication.pom
+
+        XmlTransformer xmlTransformer = new XmlTransformer()
+        xmlTransformer.addAction(mavenPom.xmlAction)
+        def resultXml = xmlTransformer.transform("<pom></pom>")
+
+        assertThat(resultXml.replaceAll("\\s+", ""), containsString("jar-man-git</url></scm>"))
+    }
+
+    @Test
+    void doesntCrashIfNoPublishingConfigured() {
+        Project project = ProjectBuilder.builder().build()
+        project.apply plugin: 'java-base'
+        project.apply plugin: 'jarmangit'
+
+        project.evaluate()
     }
 }

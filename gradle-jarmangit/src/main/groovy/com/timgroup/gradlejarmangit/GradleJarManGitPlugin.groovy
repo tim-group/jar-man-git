@@ -5,9 +5,14 @@ import org.eclipse.jgit.lib.Constants
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
+import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.XmlProvider
 import org.gradle.api.artifacts.maven.PomFilterContainer
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.plugins.PublishingPlugin
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
 
@@ -57,6 +62,27 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
                         scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
                         setScmMethod.invoke(model, scm)
                     }
+                }
+            }
+
+            def pushJarManGitIntoPom = new Action<XmlProvider>() {
+                @Override
+                void execute(XmlProvider xmlProvider) {
+                    def info = repoInfo()
+                    if (!info.isEmpty()) {
+                        def scm = xmlProvider.asNode().appendNode('scm')
+                        scm.appendNode('tag', info["Git-Head-Rev"])
+                        scm.appendNode('url', info["Git-Origin"])
+                    }
+                }
+            }
+
+            project.getPluginManager().apply(PublishingPlugin.class)
+
+            project.extensions.configure(PublishingExtension) {
+                it.publications.withType(MavenPublication) {
+                    project.logger.info("adding JarManGit information to Maven publication $it.groupId:$it.artifactId:$it.version in $project")
+                    pom.withXml(pushJarManGitIntoPom)
                 }
             }
         }
