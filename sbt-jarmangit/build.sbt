@@ -1,3 +1,5 @@
+import com.timgroup.sbtjavaversion.SbtJavaVersionKeys._
+
 version in ThisBuild := "1.0." + sys.env.getOrElse("BUILD_NUMBER", "0-SNAPSHOT")
 
 organization in ThisBuild := "com.timgroup"
