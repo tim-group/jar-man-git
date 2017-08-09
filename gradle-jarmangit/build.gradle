@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'maven-publish'
     id 'java-gradle-plugin'
+    id 'com.timgroup.jarmangit' version '1.1.63'
 }
 
 group = 'com.timgroup'
