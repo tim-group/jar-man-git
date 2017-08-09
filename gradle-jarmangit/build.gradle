@@ -1,6 +1,6 @@
 apply plugin: 'groovy'
 apply plugin: 'maven-publish'
-apply plugin: 'jarmangit'
+apply plugin: 'com.timgroup.jarmangit'
 apply plugin: 'java-gradle-plugin'
 
 group = 'com.timgroup'
@@ -45,11 +45,12 @@ dependencies {
 buildscript {
     repositories {
         maven {
+            name "nexus"
             url "${project.repoUrl}/groups/public"
         }
     }
 
     dependencies {
-        classpath group: 'com.timgroup', name: 'gradle-jarmangit', version: "1.0.+"
+        classpath "com.timgroup:gradle-jarmangit:1.1.+"
     }
 }
