@@ -1,7 +1,8 @@
-apply plugin: 'groovy'
-apply plugin: 'maven-publish'
-apply plugin: 'com.timgroup.jarmangit'
-apply plugin: 'java-gradle-plugin'
+plugins {
+    id 'groovy'
+    id 'maven-publish'
+    id 'java-gradle-plugin'
+}
 
 group = 'com.timgroup'
 version = '1.1.' + System.getenv('BUILD_NUMBER')
@@ -40,17 +41,4 @@ dependencies {
     compile group: 'org.eclipse.jgit', name: 'org.eclipse.jgit', version: '4.5.0.201609210915-r'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
-}
-
-buildscript {
-    repositories {
-        maven {
-            name "nexus"
-            url "${project.repoUrl}/groups/public"
-        }
-    }
-
-    dependencies {
-        classpath "com.timgroup:gradle-jarmangit:1.1.+"
-    }
 }
