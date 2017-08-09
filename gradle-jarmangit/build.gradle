@@ -1,14 +1,36 @@
 apply plugin: 'groovy'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'jarmangit'
+apply plugin: 'java-gradle-plugin'
 
 group = 'com.timgroup'
-version = '1.0.' + System.getenv('BUILD_NUMBER')
+version = '1.1.' + System.getenv('BUILD_NUMBER')
 
 repositories {
-    mavenLocal()
     maven {
+        name "nexus"
         url "${repoUrl}/groups/public"
+    }
+}
+
+gradlePlugin {
+    plugins {
+        autobumper {
+            id = "com.timgroup.jarmangit"
+            implementationClass = "com.timgroup.gradlejarmangit.GradleJarManGitPlugin"
+        }
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            url "${project.repoUrl}/repositories/yd-release-candidates"
+            credentials {
+                username = project.repoUsername
+                password = project.repoPassword
+            }
+        }
     }
 }
 
@@ -18,16 +40,6 @@ dependencies {
     compile group: 'org.eclipse.jgit', name: 'org.eclipse.jgit', version: '4.5.0.201609210915-r'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
-}
-
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            repository(url: "${repoUrl}/repositories/yd-release-candidates") {
-                authentication(userName: project.repoUsername, password: project.repoPassword)
-            }
-        }
-    }
 }
 
 buildscript {

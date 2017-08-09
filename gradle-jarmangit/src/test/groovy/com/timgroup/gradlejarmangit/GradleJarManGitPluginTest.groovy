@@ -30,7 +30,7 @@ class GradleJarManGitPluginTest {
     void addsMetadataToManifest() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
-        project.apply plugin: 'jarmangit'
+        project.apply plugin: 'com.timgroup.jarmangit'
 
         def jar = project.tasks.create("testJarTask", Jar)
         assertThat(jar.manifest.getAttributes().get("Git-Branch").toString(), is(equalTo("master")))
@@ -41,7 +41,7 @@ class GradleJarManGitPluginTest {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
         project.apply plugin: 'maven'
-        project.apply plugin: 'jarmangit'
+        project.apply plugin: 'com.timgroup.jarmangit'
 
         def configuration = project.configurations.create("testing")
         Upload uploadArchives = project.tasks.create("uploadArchives", Upload)
@@ -65,7 +65,7 @@ class GradleJarManGitPluginTest {
         project.with {
             apply plugin: 'java'
             apply plugin: 'maven-publish'
-            apply plugin: 'jarmangit'
+            project.apply plugin: 'com.timgroup.jarmangit'
 
             publishing {
                 publications {
@@ -94,7 +94,7 @@ class GradleJarManGitPluginTest {
     void doesntCrashIfNoPublishingConfigured() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
-        project.apply plugin: 'jarmangit'
+        project.apply plugin: 'com.timgroup.jarmangit'
 
         project.evaluate()
     }
