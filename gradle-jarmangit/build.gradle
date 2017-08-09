@@ -15,7 +15,7 @@ repositories {
 
 gradlePlugin {
     plugins {
-        autobumper {
+        jarmangit {
             id = "com.timgroup.jarmangit"
             implementationClass = "com.timgroup.gradlejarmangit.GradleJarManGitPlugin"
         }
