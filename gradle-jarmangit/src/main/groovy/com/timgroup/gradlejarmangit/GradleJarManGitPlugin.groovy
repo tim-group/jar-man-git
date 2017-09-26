@@ -68,6 +68,7 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
             def pushJarManGitIntoPom = new Action<XmlProvider>() {
                 @Override
                 void execute(XmlProvider xmlProvider) {
+                    project.logger.info("adding JarManGit information to Maven publication in $project")
                     def info = repoInfo()
                     if (!info.isEmpty()) {
                         def scm = xmlProvider.asNode().appendNode('scm')
@@ -81,7 +82,6 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
 
             project.extensions.configure(PublishingExtension) {
                 it.publications.withType(MavenPublication) {
-                    project.logger.info("adding JarManGit information to Maven publication $it.groupId:$it.artifactId:$it.version in $project")
                     pom.withXml(pushJarManGitIntoPom)
                 }
             }
