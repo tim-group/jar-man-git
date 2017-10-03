@@ -63,7 +63,9 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
-        project.tasks.withType(Jar) { jar -> jar.manifest.attributes(repoInfo(project.rootProject)) }
+        project.tasks.withType(Jar) { jar -> jar.doFirst {
+            jar.manifest.attributes(repoInfo(project.rootProject))
+        } }
 
         project.afterEvaluate {
             Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
