@@ -82,9 +82,9 @@ plugins {
 
         assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
 
-        def jarFile = new JarFile(testProjectDir.root.toPath().resolve("build/libs/testee.jar").toFile())
-        assertThat(jarFile.manifest, containsAttribute("Git-Branch", equalTo("master")))
-        jarFile.close()
+        new JarFile(testProjectDir.root.toPath().resolve("build/libs/testee.jar").toFile()).withCloseable { jarFile ->
+            assertThat(jarFile.manifest, containsAttribute("Git-Branch", equalTo("master")))
+        }
     }
 
     @Test
