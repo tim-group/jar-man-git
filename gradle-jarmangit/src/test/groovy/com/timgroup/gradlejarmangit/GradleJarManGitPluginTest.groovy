@@ -107,18 +107,18 @@ plugins {
 """
 
         repo.create()
-        def git = new Git(repo)
-        git.add().with {
-            it.addFilepattern("build.gradle")
-            it.addFilepattern("settings.gradle")
-            it.addFilepattern(".gitignore")
-            it.call()
+        usingGit { git ->
+            git.add().with {
+                it.addFilepattern("build.gradle")
+                it.addFilepattern("settings.gradle")
+                it.addFilepattern(".gitignore")
+                it.call()
+            }
+            git.commit().with {
+                it.message = "Initial commit"
+                it.call()
+            }
         }
-        git.commit().with {
-            it.message = "Initial commit"
-            it.call()
-        }
-        git.close() // Groovy 2.5 should add support for AutoCloseable
 
         def result = GradleRunner.create()
             .withProjectDir(testProjectDir.root)
@@ -273,23 +273,33 @@ build
 """
 
         repo.create()
+        usingGit { git ->
+            git.add().with {
+                it.addFilepattern("build.gradle")
+                it.addFilepattern("settings.gradle")
+                it.addFilepattern(".gitignore")
+                it.call()
+            }
+            git.commit().with {
+                it.message = "Initial commit"
+                it.call()
+            }
+            git.remoteAdd().with {
+                it.name = "origin"
+                it.uri = new URIish("git://git.example.com/testee.git")
+                it.call()
+            }
+        }
+    }
+
+    private <T> T usingGit(Closure<T> action) {
+        // Groovy 2.5 should add support for AutoCloseable
         def git = new Git(repo)
-        git.add().with {
-            it.addFilepattern("build.gradle")
-            it.addFilepattern("settings.gradle")
-            it.addFilepattern(".gitignore")
-            it.call()
+        try {
+            return action.call(git)
+        } finally {
+            git.close()
         }
-        git.commit().with {
-            it.message = "Initial commit"
-            it.call()
-        }
-        git.remoteAdd().with {
-            it.name = "origin"
-            it.uri = new URIish("git://git.example.com/testee.git")
-            it.call()
-        }
-        git.close() // Groovy 2.5 should add support for AutoCloseable
     }
 
     static def containsAttribute(String name, Matcher<?> valueMatcher) {
