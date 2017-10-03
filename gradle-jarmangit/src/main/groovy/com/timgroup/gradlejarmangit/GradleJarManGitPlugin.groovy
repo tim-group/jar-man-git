@@ -20,36 +20,50 @@ import java.lang.reflect.Method
 
 final class GradleJarManGitPlugin implements Plugin<Project> {
 
-    static Map<String, String> repoInfo() {
-        FileRepositoryBuilder builder = new FileRepositoryBuilder().readEnvironment().findGitDir()
-
-        if (builder.getGitDir() == null && builder.getWorkTree() == null) {
-            return new HashMap<String, String>()
+    static Map<String, String> repoInfo(Project project) {
+        if (project.hasProperty("jarmangit.revision")) {
+            def revision = project.property("jarmangit.revision").toString()
+            def branch = project.hasProperty("jarmangit.branch") ? project.property("jarmangit.branch").toString() : ""
+            def origin = project.hasProperty("jarmangit.origin") ? project.property("jarmangit.origin").toString() : ""
+            def dirtyState = project.hasProperty("jarmangit.dirty") ? Boolean.parseBoolean(project.property("jarmangit.dirty").toString()) : false
+            [
+                    "Git-Origin": origin,
+                    "Git-Branch": branch,
+                    "Git-Head-Rev": revision,
+                    "Git-Repo-Is-Clean": Boolean.toString(!dirtyState)
+            ]
         }
+        else {
+            FileRepositoryBuilder builder = new FileRepositoryBuilder().readEnvironment().findGitDir()
 
-        Repository repository = builder.build()
+            if (builder.getGitDir() == null && builder.getWorkTree() == null) {
+                return Collections.emptyMap()
+            }
 
-        String origin = repository.getConfig().getString("remote", "origin", "url")
-        String head = ObjectId.toString(repository.findRef(Constants.HEAD).getObjectId())
-        String branch = repository.getBranch()
-        String isClean = new Git(repository).status().call().isClean().toString()
+            Repository repository = builder.build()
 
-        [
-          "Git-Origin": origin,
-          "Git-Branch": branch,
-          "Git-Head-Rev": head,
-          "Git-Repo-Is-Clean": isClean
-        ]
+            String origin = repository.getConfig().getString("remote", "origin", "url")
+            String head = ObjectId.toString(repository.findRef(Constants.HEAD).getObjectId())
+            String branch = repository.getBranch()
+            String isClean = new Git(repository).status().call().isClean().toString()
+
+            [
+                    "Git-Origin": origin,
+                    "Git-Branch": branch,
+                    "Git-Head-Rev": head,
+                    "Git-Repo-Is-Clean": isClean
+            ]
+        }
     }
 
     @Override
     void apply(Project project) {
-        project.tasks.withType(Jar) { jar -> jar.manifest.attributes(repoInfo()) }
+        project.tasks.withType(Jar) { jar -> jar.manifest.attributes(repoInfo(project.rootProject)) }
 
         project.afterEvaluate {
             Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
             if (uploadArchives != null) {
-                def info = repoInfo()
+                def info = repoInfo(project.rootProject)
                 if (!info.isEmpty()) {
                     uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
                         def model = deployer.getPom().getModel()
@@ -69,7 +83,7 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
                 @Override
                 void execute(XmlProvider xmlProvider) {
                     project.logger.info("adding JarManGit information to Maven publication in $project")
-                    def info = repoInfo()
+                    def info = repoInfo(project.rootProject)
                     if (!info.isEmpty()) {
                         def scm = xmlProvider.asNode().appendNode('scm')
                         scm.appendNode('tag', info["Git-Head-Rev"])

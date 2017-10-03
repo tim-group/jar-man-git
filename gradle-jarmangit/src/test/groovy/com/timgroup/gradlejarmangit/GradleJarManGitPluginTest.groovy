@@ -2,6 +2,7 @@ package com.timgroup.gradlejarmangit
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.maven.PomFilterContainer
+import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.internal.publication.MavenPomInternal
@@ -19,7 +20,31 @@ class GradleJarManGitPluginTest {
 
     @Test
     void generatesRepoInfo() {
-        Map<String, String> repoInfo = GradleJarManGitPlugin.repoInfo()
+        Project project = ProjectBuilder.builder().build()
+        project.apply plugin: 'java-base'
+        project.apply plugin: 'com.timgroup.jarmangit'
+
+        def extraProperties = project.getExtensions().getByType(ExtraPropertiesExtension)
+
+        extraProperties.set("jarmangit.origin", "git://git.example.com/repo")
+        extraProperties.set("jarmangit.revision", "4b825dc642cb6eb9a060e54bf8d69288fbee4904")
+        extraProperties.set("jarmangit.branch", "master")
+        extraProperties.set("jarmangit.dirty", "false")
+
+        Map<String, String> repoInfo = GradleJarManGitPlugin.repoInfo(project)
+        assertThat(repoInfo.get("Git-Origin"), is(equalTo("git://git.example.com/repo")))
+        assertThat(repoInfo.get("Git-Branch"), is(equalTo("master")))
+        assertThat(repoInfo.get("Git-Head-Rev"), is(equalTo("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
+        assertThat(repoInfo.get("Git-Repo-Is-Clean"), is(equalTo("true")))
+    }
+
+    @Test
+    void generatesRepoInfoFromProjectProperties() {
+        Project project = ProjectBuilder.builder().build()
+        project.apply plugin: 'java-base'
+        project.apply plugin: 'com.timgroup.jarmangit'
+
+        Map<String, String> repoInfo = GradleJarManGitPlugin.repoInfo(project)
         assertThat(repoInfo.get("Git-Origin"), containsString("jar-man-git"))
         assertThat(repoInfo.get("Git-Branch"), is(equalTo("master")))
         assertThat(repoInfo.get("Git-Head-Rev").length(), is(equalTo(40)))
