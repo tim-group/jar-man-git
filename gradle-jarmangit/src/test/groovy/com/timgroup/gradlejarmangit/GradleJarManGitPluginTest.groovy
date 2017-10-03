@@ -1,28 +1,40 @@
 package com.timgroup.gradlejarmangit
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.maven.PomFilterContainer
 import org.gradle.api.plugins.ExtraPropertiesExtension
-import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.maven.internal.publication.MavenPomInternal
-import org.gradle.api.tasks.Upload
-import org.gradle.api.tasks.bundling.Jar
-import org.gradle.internal.impldep.org.apache.maven.model.Model
-import org.gradle.internal.xml.XmlTransformer
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
+import org.hamcrest.Description
+import org.hamcrest.Matcher
+import org.hamcrest.TypeSafeDiagnosingMatcher
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+
+import java.util.jar.JarFile
+import java.util.jar.Manifest
 
 import static org.hamcrest.CoreMatchers.*
 import static org.junit.Assert.assertThat
 
 class GradleJarManGitPluginTest {
+    @Rule public final TemporaryFolder testProjectDir = new TemporaryFolder()
+
+    File buildFile
+    File settingsFile
+
+    @Before
+    void setup() {
+        buildFile = testProjectDir.newFile('build.gradle')
+        settingsFile = testProjectDir.newFile('settings.gradle')
+    }
 
     @Test
     void generatesRepoInfo() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
-        project.apply plugin: 'com.timgroup.jarmangit'
 
         def extraProperties = project.getExtensions().getByType(ExtraPropertiesExtension)
 
@@ -42,7 +54,6 @@ class GradleJarManGitPluginTest {
     void generatesRepoInfoFromProjectProperties() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
-        project.apply plugin: 'com.timgroup.jarmangit'
 
         Map<String, String> repoInfo = GradleJarManGitPlugin.repoInfo(project)
         assertThat(repoInfo.get("Git-Origin"), containsString("jar-man-git"))
@@ -52,75 +63,147 @@ class GradleJarManGitPluginTest {
     }
 
     @Test
-    void addsMetadataToManifest() {
-        Project project = ProjectBuilder.builder().build()
-        project.apply plugin: 'java-base'
-        project.apply plugin: 'com.timgroup.jarmangit'
+    void "adds metadata to manifest"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+}
+"""
 
-        def jar = project.tasks.create("testJarTask", Jar)
-        assertThat(jar.manifest.getAttributes().get("Git-Branch").toString(), is(equalTo("master")))
+        def result = GradleRunner.create()
+            .withProjectDir(testProjectDir.root)
+            .withArguments("assemble")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+
+        def jarFile = new JarFile(testProjectDir.root.toPath().resolve("build/libs/testee.jar").toFile())
+        assertThat(jarFile.manifest, containsAttribute("Git-Branch", equalTo("master")))
+        jarFile.close()
     }
 
     @Test
-    void addsMetadataToPomUsingTraditionalMaven() {
-        Project project = ProjectBuilder.builder().build()
-        project.apply plugin: 'java-base'
-        project.apply plugin: 'maven'
-        project.apply plugin: 'com.timgroup.jarmangit'
+    void "adds metadata to POM using traditional maven"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+  id 'maven'
+}
 
-        def configuration = project.configurations.create("testing")
-        Upload uploadArchives = project.tasks.create("uploadArchives", Upload)
-        uploadArchives.setConfiguration(configuration)
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      repository(url: "file://localhost\${project.buildDir}/repo")
+    }
+  }
+}
 
-        project.evaluate()
+group = 'com.example'
+"""
 
-        String url = null
-        uploadArchives.repositories.mavenDeployer { m ->
-            def foo = (PomFilterContainer)m
-            def model = foo.getPom().getModel()
-            url = ((Model) model).getScm().getUrl()
-        }
 
-        assertThat(url, containsString("jar-man-git"))
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir.root)
+                .withArguments("upload")
+                .withPluginClasspath()
+                .build()
+
+        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        assertThat(result.task(":uploadArchives").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+
+        def pomFile = testProjectDir.root.toPath().resolve("build/repo/com/example/testee/unspecified/testee-unspecified.pom").toFile()
+        def pomContent = new XmlParser().parse(pomFile)
+        assertThat(pomContent.scm.url.text(), containsString("jar-man-git"))
     }
 
     @Test
-    void addsMetadataToPomUsingMavenPublish() {
-        Project project = ProjectBuilder.builder().build()
-        project.with {
-            apply plugin: 'java'
-            apply plugin: 'maven-publish'
-            project.apply plugin: 'com.timgroup.jarmangit'
+    void "adds metadata to POM using maven-publish"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+  id 'maven-publish'
+}
 
-            publishing {
-                publications {
-                    mavenJava(MavenPublication) {
-                        from components.java
-                    }
+group = 'com.example'
+
+publishing {
+  repositories {
+    maven {
+      url "\${project.buildDir}/repo"
+    }
+  }
+  publications {
+    mavenJava(MavenPublication) {
+      from components.java
+    }
+  }
+}
+"""
+
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir.root)
+                .withArguments("publish")
+                .withPluginClasspath()
+                .build()
+
+        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        assertThat(result.task(":generatePomFileForMavenJavaPublication").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        assertThat(result.task(":publishMavenJavaPublicationToMavenRepository").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+
+        def pomFile = testProjectDir.root.toPath().resolve("build/repo/com/example/testee/unspecified/testee-unspecified.pom").toFile()
+        def pomContent = new XmlParser().parse(pomFile)
+        assertThat(pomContent.scm.url.text(), containsString("jar-man-git"))
+    }
+
+    @Test
+    void "doesn't crash if publishing not configured"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+}
+"""
+
+        GradleRunner.create()
+                .withProjectDir(testProjectDir.root)
+                .withArguments("build")
+                .withPluginClasspath()
+                .build()
+    }
+
+    static def containsAttribute(String name, Matcher<?> valueMatcher) {
+        return new TypeSafeDiagnosingMatcher<Manifest>() {
+            @Override
+            protected boolean matchesSafely(Manifest item, Description mismatchDescription) {
+                def value = item.getMainAttributes().getValue(name)
+                if (value == null) {
+                    mismatchDescription.appendText("attributes present: ").appendValue(item.getMainAttributes().keySet())
+                    return false
                 }
+                valueMatcher.describeMismatch(value, mismatchDescription)
+                return valueMatcher.matches(value)
+            }
+
+            @Override
+            void describeTo(Description description) {
+                description.appendText("has attribute ").appendValue(name).appendText(" ").appendDescriptionOf(valueMatcher)
             }
         }
-
-        project.evaluate()
-
-        def publications = project.extensions.getByType(PublishingExtension).publications
-        def publication = publications.iterator().next()
-        def mavenPublication = (MavenPublication) publication
-        def mavenPom = (MavenPomInternal) mavenPublication.pom
-
-        XmlTransformer xmlTransformer = new XmlTransformer()
-        xmlTransformer.addAction(mavenPom.xmlAction)
-        def resultXml = xmlTransformer.transform("<pom></pom>")
-
-        assertThat(resultXml.replaceAll("\\s+", ""), containsString("jar-man-git</url></scm>"))
-    }
-
-    @Test
-    void doesntCrashIfNoPublishingConfigured() {
-        Project project = ProjectBuilder.builder().build()
-        project.apply plugin: 'java-base'
-        project.apply plugin: 'com.timgroup.jarmangit'
-
-        project.evaluate()
     }
 }
