@@ -1,10 +1,15 @@
 package com.timgroup.gradlejarmangit
 
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder
+import org.eclipse.jgit.transport.URIish
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.hamcrest.Description
 import org.hamcrest.Matcher
 import org.hamcrest.TypeSafeDiagnosingMatcher
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -21,15 +26,54 @@ class GradleJarManGitPluginTest {
 
     File buildFile
     File settingsFile
+    Repository repo
 
     @Before
     void setup() {
         buildFile = testProjectDir.newFile('build.gradle')
         settingsFile = testProjectDir.newFile('settings.gradle')
+        repo = new FileRepositoryBuilder().setWorkTree(testProjectDir.root).build()
+    }
+
+    @After
+    void tearDown() {
+        if (repo != null)
+            repo.close()
     }
 
     @Test
     void "adds metadata to manifest"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+}
+"""
+
+        initialiseRepositoryWithUpstream()
+
+        def result = GradleRunner.create()
+            .withProjectDir(testProjectDir.root)
+            .withArguments("assemble")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        println(result.output)
+
+        new JarFile(testProjectDir.root.toPath().resolve("build/libs/testee.jar").toFile()).withCloseable { jarFile ->
+            assertThat(jarFile.manifest, containsAttribute("Git-Head-Rev", is(sha1Hash())))
+            assertThat(jarFile.manifest, containsAttribute("Git-Branch", is(equalTo("master"))))
+            assertThat(jarFile.manifest, containsAttribute("Git-Origin", is(equalTo("git://git.example.com/testee.git"))))
+            assertThat(jarFile.manifest, containsAttribute("Git-Repo-Is-Clean", is(equalTo("true"))))
+        }
+    }
+
+    @Test
+    void "warns if no repository present"() {
         settingsFile << """
 rootProject.name = 'testee'
 """
@@ -47,15 +91,43 @@ plugins {
             .build()
 
         assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        assertThat(result.output, containsString("No GIT repository found -- JarManGit information will not be included in Manifest/POM"))
+    }
 
-        // yuk, this is taking settings from the local checkout of jar-man-git itself
-        // this is arguably a bug, the plugin should only look at where the project lives
-        new JarFile(testProjectDir.root.toPath().resolve("build/libs/testee.jar").toFile()).withCloseable { jarFile ->
-            assertThat(jarFile.manifest, containsAttribute("Git-Head-Rev", is(sha1Hash())))
-            assertThat(jarFile.manifest, containsAttribute("Git-Branch", is(equalTo("master"))))
-            assertThat(jarFile.manifest, containsAttribute("Git-Origin", containsString("jar-man-git")))
-            assertThat(jarFile.manifest, containsAttribute("Git-Repo-Is-Clean", is(either(equalTo("true")) | equalTo("false"))))
+    @Test
+    void "warns if repository has no origin URL"() {
+        settingsFile << """
+rootProject.name = 'testee'
+"""
+        buildFile << """
+plugins {
+  id 'com.timgroup.jarmangit'
+  id 'java'
+}
+"""
+
+        repo.create()
+        def git = new Git(repo)
+        git.add().with {
+            it.addFilepattern("build.gradle")
+            it.addFilepattern("settings.gradle")
+            it.addFilepattern(".gitignore")
+            it.call()
         }
+        git.commit().with {
+            it.message = "Initial commit"
+            it.call()
+        }
+        git.close() // Groovy 2.5 should add support for AutoCloseable
+
+        def result = GradleRunner.create()
+            .withProjectDir(testProjectDir.root)
+            .withArguments("assemble")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
+        assertThat(result.output, containsString("GIT repository does not have an 'origin' upstream -- JarManGit information will not be included in Manifest/POM"))
     }
 
     @Test
@@ -114,6 +186,7 @@ uploadArchives {
 group = 'com.example'
 """
 
+        initialiseRepositoryWithUpstream()
 
         def result = GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
@@ -126,7 +199,7 @@ group = 'com.example'
 
         def pomFile = testProjectDir.root.toPath().resolve("build/repo/com/example/testee/unspecified/testee-unspecified.pom").toFile()
         def pomContent = new XmlParser().parse(pomFile)
-        assertThat(pomContent.scm.url.text(), containsString("jar-man-git"))
+        assertThat(pomContent.scm.url.text(), is(equalTo("git://git.example.com/testee.git")))
     }
 
     @Test
@@ -157,6 +230,8 @@ publishing {
 }
 """
 
+        initialiseRepositoryWithUpstream()
+
         def result = GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
                 .withArguments("publish")
@@ -169,7 +244,7 @@ publishing {
 
         def pomFile = testProjectDir.root.toPath().resolve("build/repo/com/example/testee/unspecified/testee-unspecified.pom").toFile()
         def pomContent = new XmlParser().parse(pomFile)
-        assertThat(pomContent.scm.url.text(), containsString("jar-man-git"))
+        assertThat(pomContent.scm.url.text(), is(equalTo("git://git.example.com/testee.git")))
     }
 
     @Test
@@ -189,6 +264,32 @@ plugins {
                 .withArguments("build")
                 .withPluginClasspath()
                 .build()
+    }
+
+    private def initialiseRepositoryWithUpstream() {
+        testProjectDir.newFile(".gitignore") << """
+.gradle
+build
+"""
+
+        repo.create()
+        def git = new Git(repo)
+        git.add().with {
+            it.addFilepattern("build.gradle")
+            it.addFilepattern("settings.gradle")
+            it.addFilepattern(".gitignore")
+            it.call()
+        }
+        git.commit().with {
+            it.message = "Initial commit"
+            it.call()
+        }
+        git.remoteAdd().with {
+            it.name = "origin"
+            it.uri = new URIish("git://git.example.com/testee.git")
+            it.call()
+        }
+        git.close() // Groovy 2.5 should add support for AutoCloseable
     }
 
     static def containsAttribute(String name, Matcher<?> valueMatcher) {

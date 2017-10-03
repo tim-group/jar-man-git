@@ -34,15 +34,20 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
             ]
         }
         else {
-            FileRepositoryBuilder builder = new FileRepositoryBuilder().readEnvironment().findGitDir()
+            FileRepositoryBuilder builder = new FileRepositoryBuilder().findGitDir(project.projectDir)
 
-            if (builder.getGitDir() == null && builder.getWorkTree() == null) {
+            if (builder.gitDir == null && builder.workTree == null) {
+                project.logger.warn("No GIT repository found -- JarManGit information will not be included in Manifest/POM")
                 return Collections.emptyMap()
             }
 
             Repository repository = builder.build()
 
             String origin = repository.getConfig().getString("remote", "origin", "url")
+            if (origin == null) {
+                project.logger.warn("GIT repository does not have an 'origin' upstream -- JarManGit information will not be included in Manifest/POM")
+                return Collections.emptyMap()
+            }
             String head = ObjectId.toString(repository.findRef(Constants.HEAD).getObjectId())
             String branch = repository.getBranch()
             String isClean = new Git(repository).status().call().isClean().toString()
