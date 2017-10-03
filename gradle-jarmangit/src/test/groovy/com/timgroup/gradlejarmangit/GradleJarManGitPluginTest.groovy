@@ -32,7 +32,7 @@ class GradleJarManGitPluginTest {
     }
 
     @Test
-    void generatesRepoInfo() {
+    void "generates repo info"() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
 
@@ -51,7 +51,7 @@ class GradleJarManGitPluginTest {
     }
 
     @Test
-    void generatesRepoInfoFromProjectProperties() {
+    void "generates repo info from project properties"() {
         Project project = ProjectBuilder.builder().build()
         project.apply plugin: 'java-base'
 
