@@ -4,7 +4,11 @@ organization in ThisBuild := "com.timgroup"
 
 name := "sbt-jarmangit"
 
-scalaVersion in ThisBuild := "2.10.6"
+scalaVersion := "2.12.3"
+
+sbtVersion in Global := "1.0.3"
+
+crossSbtVersions := Vector("0.13.16", "1.0.3")
 
 javaVersion in ThisBuild := "1.7"
 
@@ -24,3 +28,9 @@ libraryDependencies ++= Seq (
   "org.eclipse.jgit" % "org.eclipse.jgit" % "4.5.0.201609210915-r",
   "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
+
+scalaCompilerBridgeSource := {
+    val sv = appConfiguration.value.provider.id.version
+    ("org.scala-sbt" % "compiler-interface" % sv % "component").sources
+}
+
