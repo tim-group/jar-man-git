@@ -28,3 +28,8 @@ libraryDependencies ++= Seq (
   "org.eclipse.jgit" % "org.eclipse.jgit" % "4.5.0.201609210915-r",
   "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
+
+scalaCompilerBridgeSource := {
+  val sv = appConfiguration.value.provider.id.version
+  ("org.scala-sbt" % "compiler-interface" % sv % "component").sources
+}
