@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 cd sbt-jarmangit
 sbt-tg ^test ^publish
