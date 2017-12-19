@@ -1,5 +1,4 @@
-.idea
-.idea_modules
+/.idea
 /build
-/classes
 /.gradle
+/*.iml
