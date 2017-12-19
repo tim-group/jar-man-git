@@ -2,4 +2,4 @@ language: java
 sudo: false
 jdk: oraclejdk8
 script:
-- ( cd gradle-jarmangit && ./gradlew check )
+- ( cd gradle-jarmangit && ./gradlew --console plain check )
