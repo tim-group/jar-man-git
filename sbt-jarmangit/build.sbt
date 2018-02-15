@@ -6,8 +6,6 @@ name := "sbt-jarmangit"
 
 scalaVersion in ThisBuild := "2.10.6"
 
-javaVersion in ThisBuild := "1.7"
-
 javacOptions += "-g"
 
 javacOptions += "-parameters"
