@@ -68,24 +68,6 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
         } }
 
         project.afterEvaluate {
-            Upload uploadArchives = (Upload)project.getTasks().withType(Upload.class).findByName("uploadArchives")
-            if (uploadArchives != null) {
-                def info = repoInfo(project.rootProject)
-                if (!info.isEmpty()) {
-                    uploadArchives.repositories.mavenDeployer { PomFilterContainer deployer ->
-                        def model = deployer.getPom().getModel()
-
-                        Method setScmMethod = model.getClass().getMethods().find { method -> (method.name == "setScm") }
-                        Class<?> scmType = setScmMethod.parameterTypes[0]
-
-                        def scm = scmType.newInstance()
-                        scmType.getMethod("setTag", String.class).invoke(scm, info.get("Git-Head-Rev"))
-                        scmType.getMethod("setUrl", String.class).invoke(scm, info.get("Git-Origin"))
-                        setScmMethod.invoke(model, scm)
-                    }
-                }
-            }
-
             def pushJarManGitIntoPom = new Action<XmlProvider>() {
                 @Override
                 void execute(XmlProvider xmlProvider) {

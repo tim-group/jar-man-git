@@ -164,45 +164,6 @@ plugins {
     }
 
     @Test
-    void "adds metadata to POM using traditional maven"() {
-        settingsFile << """
-rootProject.name = 'testee'
-"""
-        buildFile << """
-plugins {
-  id 'com.timgroup.jarmangit'
-  id 'java'
-  id 'maven'
-}
-
-uploadArchives {
-  repositories {
-    mavenDeployer {
-      repository(url: "file://localhost\${project.buildDir}/repo")
-    }
-  }
-}
-
-group = 'com.example'
-"""
-
-        initialiseRepositoryWithUpstream()
-
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir.root)
-                .withArguments("upload")
-                .withPluginClasspath()
-                .build()
-
-        assertThat(result.task(":jar").outcome, is(equalTo(TaskOutcome.SUCCESS)))
-        assertThat(result.task(":uploadArchives").outcome, is(equalTo(TaskOutcome.SUCCESS)))
-
-        def pomFile = testProjectDir.root.toPath().resolve("build/repo/com/example/testee/unspecified/testee-unspecified.pom").toFile()
-        def pomContent = new XmlParser().parse(pomFile)
-        assertThat(pomContent.scm.url.text(), is(equalTo("git://git.example.com/testee.git")))
-    }
-
-    @Test
     void "adds metadata to POM using maven-publish"() {
         settingsFile << """
 rootProject.name = 'testee'
