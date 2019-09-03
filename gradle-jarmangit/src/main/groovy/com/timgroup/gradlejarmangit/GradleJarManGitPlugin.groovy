@@ -63,7 +63,7 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
-        project.tasks.withType(Jar) { jar -> jar.doFirst {
+        project.tasks.withType(Jar).configureEach { jar -> jar.doFirst {
             jar.manifest.attributes(repoInfo(project.rootProject))
         } }
 
