@@ -9,14 +9,10 @@ import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.XmlProvider
-import org.gradle.api.artifacts.maven.PomFilterContainer
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.plugins.PublishingPlugin
-import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
-
-import java.lang.reflect.Method
 
 final class GradleJarManGitPlugin implements Plugin<Project> {
 
@@ -84,7 +80,7 @@ final class GradleJarManGitPlugin implements Plugin<Project> {
             project.getPluginManager().apply(PublishingPlugin.class)
 
             project.extensions.configure(PublishingExtension) {
-                it.publications.withType(MavenPublication) {
+                it.publications.withType(MavenPublication).configureEach {
                     pom.withXml(pushJarManGitIntoPom)
                 }
             }

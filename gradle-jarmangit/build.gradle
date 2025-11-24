@@ -1,12 +1,10 @@
 plugins {
     id 'groovy'
-    id 'maven-publish'
-    id 'java-gradle-plugin'
-    id "com.gradle.plugin-publish" version "0.11.0"
+    id "com.gradle.plugin-publish" version "1.2.0"
 }
 
 group = 'com.timgroup'
-if (System.getenv("BUILD_NUMBER")) version = '1.1.' + System.getenv('BUILD_NUMBER')
+if (System.getenv("BUILD_NUMBER")) version = '1.2.' + System.getenv('BUILD_NUMBER')
 description = "Get scm info into the MANIFEST.MF and pom.xml"
 
 repositories {
@@ -28,37 +26,24 @@ dependencies {
 }
 
 gradlePlugin {
+    website = "https://github.com/tim-group/jar-man-git"
+    vcsUrl = "https://github.com/tim-group/jar-man-git"
+    description = project.description
     plugins {
-        jarmangit {
+        create("jarmangit") {
             id = "com.timgroup.jarmangit"
+            description = project.description
+            tags.add("git")
+            tags.add("pom")
             implementationClass = "com.timgroup.gradlejarmangit.GradleJarManGitPlugin"
         }
     }
 }
 
-pluginBundle {
-    website = "https://github.com/tim-group/jar-man-git"
-    vcsUrl = "https://github.com/tim-group/jar-man-git"
-    description = project.description
-    plugins {
-        jarmangit {
-            id = "com.timgroup.jarmangit"
-            displayName = project.description
-            tags = ["git", "pom"]
-        }
-    }
-}
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    implementation "org.eclipse.jgit:org.eclipse.jgit:4.5.0.201609210915-r"
 
-publishing {
-    repositories {
-        if (project.hasProperty("repoUrl")) {
-            maven {
-                url "${project.repoUrl}/repositories/yd-release-candidates"
-                credentials {
-                    username = project.repoUsername
-                    password = project.repoPassword
-                }
-            }
-        }
-    }
+    implementation "junit:junit:4.13.1"
 }
