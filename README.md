@@ -28,18 +28,14 @@ Once we add the plugins to our builds, we will start to build up a record of whi
 ## Instructions for adding the plugin to your builds
 
 ### Gradle
-[example](http://git.net.local/gitweb/?p=adminscreens.git;a=commitdiff;h=77497b3c5dd12a165e6c0bc9c1744553e4686f8f)
+[example](https://github.com/tim-group/Tucker/blob/c3c31098092944578e1b662109c56aa2ac460a7c/build.gradle#L4)
 
-Add the “apply plugin” line to the top of your build.gradle, and add the dependency to the section at the bottom of your build.gradle.
-
-```groovy
-  apply plugin: 'jarmangit'
-```
+Add the plugin in the `plugins { }` block at the top of your build file:
 
 ```groovy
-  dependencies {
-        classpath group: 'com.timgroup', name: 'gradle-jarmangit', version: "1.0.+"
-  }
+plugins {
+    id "com.timgroup.jarmangit" version "1.2.0"
+}
 ```
 
 ### SBT
