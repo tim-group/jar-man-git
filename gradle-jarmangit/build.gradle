@@ -4,7 +4,8 @@ plugins {
 }
 
 group = 'com.timgroup'
-if (System.getenv("BUILD_NUMBER")) version = '1.2.' + System.getenv('BUILD_NUMBER')
+def buildNumber = providers.environmentVariable("BUILD_NUMBER")
+if (buildNumber.present) version = "1.2.${buildNumber.get()}"
 description = "Get scm info into the MANIFEST.MF and pom.xml"
 
 repositories {
@@ -46,4 +47,39 @@ dependencies {
     implementation "org.eclipse.jgit:org.eclipse.jgit:4.5.0.201609210915-r"
 
     implementation "junit:junit:4.13.1"
+}
+
+publishing {
+    def repoUrl = providers.gradleProperty("repoUrl")
+    def repoUsername = providers.gradleProperty("repoUsername")
+    def repoPassword = providers.gradleProperty("repoPassword")
+    def codeartifactUrl = providers.environmentVariable("CODEARTIFACT_URL")
+            .orElse(providers.gradleProperty("codeartifact.url"))
+            .orElse("https://timgroup-148217964156.d.codeartifact.eu-west-1.amazonaws.com/maven/jars/")
+    def codeartifactToken = providers.environmentVariable("CODEARTIFACT_TOKEN")
+            .orElse(providers.gradleProperty("codeartifact.token"))
+
+    repositories {
+        if (repoUrl.present && repoUsername.present && repoPassword.present) {
+            maven {
+                name = "nexus"
+                url = "${repoUrl.get()}/repositories/yd-release-candidates"
+                credentials {
+                    username = repoUsername.get()
+                    password = repoPassword.get()
+                }
+                allowInsecureProtocol = true
+            }
+        }
+        if (codeartifactUrl.present && codeartifactToken.present) {
+            maven {
+                name = "codeartifact"
+                url = codeartifactUrl.get()
+                credentials {
+                    username = "aws"
+                    password = codeartifactToken.get()
+                }
+            }
+        }
+    }
 }
